@@ -8,6 +8,8 @@ import yaml
 import plain_db
 from telegram_util import isCN
 import webgram
+import text_2_img
+import telepost
 
 with open('credential') as f:
     credential = yaml.load(f, Loader=yaml.FullLoader)
@@ -33,8 +35,24 @@ def getText(post):
         if item.name == 'br':
             item.replace_with('\n')
     text = soup.text.strip()
-    result = text + '\n\n' + source
-    return result
+    result = '%s\n\n原文： %s' % (text, source)
+    text_byte_len = sum([isCN(c) + 1 for c in result])
+    result += '\n翻译： https://t.me/%s/%d' % (setting['src_name'], post.id)
+    return result, text_byte_len
+
+async def postTelegramImg(src, post):
+    orig_imgs = await telepost.getImagesV2(src, post)
+    text, text_byte_len = getText(post)
+    if text_byte_len < 140:
+        return
+    text_imgs = text_2_img.gen(text) 
+    to_post_imgs = text_imgs + orig_imgs
+    if len(to_post_imgs) > 10:
+        to_post_imgs = text_imgs
+    to_post_text = text.split('\n')[0]
+    client = await telepost.getTelethonClient()
+    chat = await client.get_entity(setting['dest'])
+    await client.send_file(chat, to_post_imgs, caption=to_post_text)
 
 async def process(client):
     src = await client.get_entity(setting['src'])
@@ -44,18 +62,16 @@ async def process(client):
     if not post:
         cache.update('last_sync', last_sync + 99)
         return
-    text = getText(post)
-    dest = await client.get_entity(setting['dest'])
-    await client.send_message(dest, '/ifttt ' + text)
+    await postTelegramImg(src, post)
     cache.update('last_sync', post.id)
         
 async def run():
-    client = TelegramClient('session_file', credential['api_id'], credential['api_hash'])
-    await client.start(password=credential['password'])
+    client = await telepost.getTelethonClient()
     await process(client)
     await client.disconnect()
     
 if __name__ == "__main__":
+    # cache.update('last_sync', 0)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(run())
