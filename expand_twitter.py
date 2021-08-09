@@ -11,6 +11,7 @@ import webgram
 import text_2_img
 import telepost
 import random
+import os
 
 backgrounds = [(227, 227, 255), (223, 242, 253), (226, 252, 230),
 (252, 250, 222), (255, 238, 226), (255, 219, 219)]
@@ -84,7 +85,7 @@ async def run():
     await client.disconnect()
     
 if __name__ == "__main__":
-    # cache.update('last_sync', cache.get('last_sync') - 1)
+    cache.update('last_sync', 0)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(run())
