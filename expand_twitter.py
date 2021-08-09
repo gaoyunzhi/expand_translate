@@ -1,105 +1,69 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+from expand_img import *
+import tweepy
+from moviepy.editor import VideoFileClip
 
-from telethon import TelegramClient
-from bs4 import BeautifulSoup
-import asyncio
-import yaml
-import plain_db
-from telegram_util import isCN, isUrl
-import webgram
-import text_2_img
-import telepost
-import random
-import os
+auth = tweepy.OAuthHandler(credential['twitter_consumer_key'], credential['twitter_consumer_secret'])
+auth.set_access_token(credential['access_key'], credential['access_secret'])
+api = tweepy.API(auth)
 
-backgrounds = [(227, 227, 255), (223, 242, 253), (226, 252, 230),
-(252, 250, 222), (255, 238, 226), (255, 219, 219)]
-
-with open('credential') as f:
-    credential = yaml.load(f, Loader=yaml.FullLoader)
-
-with open('setting') as f:
-    setting = yaml.load(f, Loader=yaml.FullLoader)
-
-cache = plain_db.load('cache')
-
-def getNextPost(posts):
-    for post in posts[::-1]:
-        if post.text and isCN(post.text):
-            return post
-
-def getText(post):
-    soup = webgram.getPost(setting['src_name'], post.id).text
-    source = ''
-    source_tmp = ''
-    for item in soup:
-        if item.name == 'a':
-            if 'source' in item.text:
-                source = item['href']
-            source_tmp = item['href']
-            item.decompose()
-        if item.name == 'br':
-            item.replace_with('\n')
-        if str(item).startswith('译者'):
-            item.replace_with('')
-        for subitem in str(item).split():
-            if isUrl(subitem) or subitem.startswith('http'):
-                source_tmp = subitem
-    text = soup.text.strip()
-    append1 = '\n\n原文： %s' % (source or source_tmp)
-    result = text + append1
-    text_byte_len = sum([isCN(c) + 1 for c in result])
-    append2 = '\n翻译： https://t.me/%s/%d' % (setting['src_name'], post.id)
-    result += append2
-    short_text = text.split('\n')[0] + append1 + append2
-    return result, text_byte_len, short_text
-
-async def postTelegramImg(src, post):
-    orig_imgs = await telepost.getImagesV2(src, post)
-    text, text_byte_len, short_text = getText(post)
-    client = await telepost.getTelethonClient()
-    chat = await client.get_entity(setting['dest'])
-    if text_byte_len < 280:
-        imgs_to_save = orig_imgs
-    else:
-        text_imgs = text_2_img.gen(text, background = random.choice(backgrounds)) 
-        imgs_to_save = text_imgs + orig_imgs
-        to_post_imgs = text_imgs + orig_imgs
-        to_post_imgs = to_post_imgs[:10]
-    for index, path in enumerate(imgs_to_save):
-        ext = path.rsplit('.', 1)[1]
-        os.system('cp "%s" result/%d_%d.%s' % (path, post.id, index + 1, ext))
-    with open('result/%d.txt' % post.id, 'w') as f:
-        f.write(text)
-    if text_byte_len < 280:
+async def getMediaSingle(fn):
+    if fn.endswith('.mp4'): # no video
         return
-    if sum([isCN(c) + 1 for c in short_text]) > 280:
-        print('short text too long', short_text)
-        short_text = ''
-    await client.send_file(chat, to_post_imgs, caption=short_text)
+    try:
+        return api.media_upload(fn).media_id
+    except Exception as e:
+        print('media upload failed:', str(e))
+
+async def getMedia(imgs):
+    result = []
+    for img in imgs:
+        media = await getMediaSingle(img)
+        if media:
+            result.append(media)
+        if len(result) >= 4:
+            return result
+    return result
+
+async def postTwitterCore(imgs, text):
+    media_ids = await getMedia(imgs)
+    result = api.update_status(status=text, media_ids=media_ids)
+    print('https://twitter.com/%s/status/%d' % (setting['twitter_channel'], result.id))
+
+async def postTwitter(src, post):
+    text = post.raw_text
+    orig_post_id = int(text.strip().rsplit('/', 1)[1])
+    client = await telepost.getTelethonClient()
+    orig_channel = await client.get_entity(setting['src'])
+    orig_post = await client.get_messages(orig_channel, ids=orig_post_id)
+    orig_imgs = await telepost.getImagesV2(orig_channel, orig_post)
+    orig_text, _, _ = getText(orig_post)
+    text_imgs = text_2_img.gen(orig_text, background = (255, 255, 255)) 
+    to_post_imgs = text_imgs + orig_imgs
+    save(orig_post.id, to_post_imgs, text)
+    print(text)
+    await postTwitterCore(to_post_imgs, text)
 
 async def process(client):
-    src = await client.get_entity(setting['src'])
-    last_sync = cache.get('last_sync', 0)
+    src = await client.get_entity(setting['dest'])
+    last_sync = cache.get('last_sync_twitter', 0)
+    if last_sync > 2415: # testing
+        return
     posts = await client.get_messages(src, min_id=last_sync, max_id = last_sync + 100, limit = 100)
     post = getNextPost(posts)
     if not post:
-        cache.update('last_sync', last_sync + 99)
+        cache.update('last_sync_twitter', last_sync + 99)
         return
-    await postTelegramImg(src, post)
-    cache.update('last_sync', post.id)
-        
+    await postTwitter(src, post)
+    cache.update('last_sync_twitter', post.id)
+
 async def run():
     client = await telepost.getTelethonClient()
     # await client.get_dialogs()
-    for _ in range(100):
-        await process(client)
     await process(client)
     await client.disconnect()
     
 if __name__ == "__main__":
-    # cache.update('last_sync', 0)
+    # cache.update('last_sync_twitter', cache.get('last_sync_twitter') - 1)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(run())
