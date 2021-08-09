@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 import asyncio
 import yaml
 import plain_db
-from telegram_util import isCN
+from telegram_util import isCN, isUrl
 import webgram
 import text_2_img
 import telepost
@@ -32,38 +32,52 @@ def getNextPost(posts):
 def getText(post):
     soup = webgram.getPost(setting['src_name'], post.id).text
     source = ''
+    source_tmp = ''
     for item in soup:
         if item.name == 'a':
             if 'source' in item.text:
                 source = item['href']
+            source_tmp = item['href']
             item.decompose()
         if item.name == 'br':
             item.replace_with('\n')
+        if str(item).startswith('译者'):
+            item.replace_with('')
+        for subitem in str(item).split():
+            if isUrl(subitem) or subitem.startswith('http'):
+                source_tmp = subitem
     text = soup.text.strip()
-    result = '%s\n\n原文： %s' % (text, source)
+    append1 = '\n\n原文： %s' % (source or source_tmp)
+    result = text + append1
     text_byte_len = sum([isCN(c) + 1 for c in result])
-    result += '\n翻译： https://t.me/%s/%d' % (setting['src_name'], post.id)
-    return result, text_byte_len
+    append2 = '\n翻译： https://t.me/%s/%d' % (setting['src_name'], post.id)
+    result += append2
+    short_text = text.split('\n')[0] + append1 + append2
+    return result, text_byte_len, short_text
 
 async def postTelegramImg(src, post):
     orig_imgs = await telepost.getImagesV2(src, post)
-    text, text_byte_len = getText(post)
-    if text_byte_len < 140:
-        return
-    text_imgs = text_2_img.gen(text, background = random.choice(backgrounds)) 
-    to_post_imgs = text_imgs + orig_imgs
-    if len(to_post_imgs) > 10:
-        to_post_imgs = text_imgs
-    to_post_text = text.split('\n')[0]
+    text, text_byte_len, short_text = getText(post)
     client = await telepost.getTelethonClient()
     chat = await client.get_entity(setting['dest'])
-    # print('https://t.me/%s/%d' % (setting['src_name'], post.id))
-    for index, path in enumerate(text_imgs + orig_imgs):
+    if text_byte_len < 280:
+        imgs_to_save = orig_imgs
+    else:
+        text_imgs = text_2_img.gen(text, background = random.choice(backgrounds)) 
+        imgs_to_save = text_imgs + orig_imgs
+        to_post_imgs = text_imgs + orig_imgs
+        to_post_imgs = to_post_imgs[:10]
+    for index, path in enumerate(imgs_to_save):
         ext = path.rsplit('.', 1)[1]
-        os.system('cp %s result/%d_%d.%s' % (path, post.id, index + 1, ext))
-    with open('result/%d.txt', w) as f:
+        os.system('cp "%s" result/%d_%d.%s' % (path, post.id, index + 1, ext))
+    with open('result/%d.txt' % post.id, 'w') as f:
         f.write(text)
-    await client.send_file(chat, to_post_imgs, caption=to_post_text)
+    if text_byte_len < 280:
+        return
+    if sum([isCN(c) + 1 for c in short_text]) > 280:
+        print('short text too long', short_text)
+        short_text = ''
+    await client.send_file(chat, to_post_imgs, caption=short_text)
 
 async def process(client):
     src = await client.get_entity(setting['src'])
@@ -79,13 +93,13 @@ async def process(client):
 async def run():
     client = await telepost.getTelethonClient()
     # await client.get_dialogs()
-    for _ in range(10):
+    for _ in range(100):
         await process(client)
     await process(client)
     await client.disconnect()
     
 if __name__ == "__main__":
-    cache.update('last_sync', 0)
+    # cache.update('last_sync', 0)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(run())
