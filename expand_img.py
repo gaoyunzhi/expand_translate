@@ -13,6 +13,7 @@ import text_2_img
 import telepost
 import random
 import os
+import datetime
 
 backgrounds = [(227, 227, 255), (223, 242, 253), (226, 252, 230),
 (252, 250, 222), (255, 238, 226), (255, 219, 219)]
@@ -83,15 +84,19 @@ async def postTelegramImg(src, post):
         short_text = ''
     await client.send_file(chat, to_post_imgs, caption=short_text)
 
+def tooNew(post):
+    dt = post.edit_date or post.date
+    print(int(int((datetime.datetime.now(datetime.timezone.utc) - dt).total_seconds())))
+    return int((datetime.datetime.now(datetime.timezone.utc) - dt).total_seconds()) < 60 * 60 * 5
+
 async def process(client):
     src = await client.get_entity(setting['src'])
     last_sync = cache.get('last_sync', 0)
-    if last_sync > 5600: # testing
-        return
     posts = await client.get_messages(src, min_id=last_sync, max_id = last_sync + 100, limit = 100)
     post = getNextPost(posts)
     if not post:
-        cache.update('last_sync', last_sync + 99)
+        return
+    if tooNew(post):
         return
     await postTelegramImg(src, post)
     cache.update('last_sync', post.id)
@@ -99,8 +104,6 @@ async def process(client):
 async def run():
     client = await telepost.getTelethonClient()
     # await client.get_dialogs()
-    for _ in range(3000):
-        await process(client)
     await process(client)
     await client.disconnect()
     
