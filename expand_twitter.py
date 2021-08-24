@@ -44,6 +44,7 @@ async def postTwitter(src, post):
     await postTwitterCore(to_post_imgs, text)
 
 def tooNewForTwitter(post):
+    return False # testing
     dt = post.edit_date or post.date
     if not post.edit_date:
         return (datetime.datetime.now(datetime.timezone.utc) - dt).total_seconds() < 60 * 60 * 24    
@@ -71,9 +72,7 @@ if __name__ == "__main__":
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     if random.random() < 0.5:
-        print(1)
         loop.run_until_complete(expand_img_run())
     else:
-        print(2)
         loop.run_until_complete(expand_twitter_run())
     loop.close()
