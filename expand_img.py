@@ -103,8 +103,7 @@ async def processExpandImg(client):
 async def expand_img_run():
     client = await telepost.getTelethonClient()
     # await client.get_dialogs()
-    for _ in range(1000):
-        await processExpandImg(client)
+    await processExpandImg(client)
     await client.disconnect()
     
 if __name__ == "__main__":
