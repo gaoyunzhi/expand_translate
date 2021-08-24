@@ -84,12 +84,11 @@ async def postTelegramImg(src, post):
         short_text = ''
     await client.send_file(chat, to_post_imgs, caption=short_text)
 
-def tooNew(post):
+def tooNew(post, cut_hour=5):
     dt = post.edit_date or post.date
-    print(int(int((datetime.datetime.now(datetime.timezone.utc) - dt).total_seconds())))
-    return int((datetime.datetime.now(datetime.timezone.utc) - dt).total_seconds()) < 60 * 60 * 5
+    return (datetime.datetime.now(datetime.timezone.utc) - dt).total_seconds() < 60 * 60 * cut_hour
 
-async def process(client):
+async def processExpandImg(client):
     src = await client.get_entity(setting['src'])
     last_sync = cache.get('last_sync', 0)
     posts = await client.get_messages(src, min_id=last_sync, max_id = last_sync + 100, limit = 100)
@@ -101,15 +100,15 @@ async def process(client):
     await postTelegramImg(src, post)
     cache.update('last_sync', post.id)
         
-async def run():
+async def expand_img_run():
     client = await telepost.getTelethonClient()
     # await client.get_dialogs()
-    await process(client)
+    await processExpandImg(client)
     await client.disconnect()
     
 if __name__ == "__main__":
     # cache.update('last_sync', 0)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    loop.run_until_complete(run())
+    loop.run_until_complete(expand_img_run())
     loop.close()

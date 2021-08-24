@@ -43,28 +43,37 @@ async def postTwitter(src, post):
     print(text)
     await postTwitterCore(to_post_imgs, text)
 
-async def process(client):
+def tooNewForTwitter(post):
+    dt = post.edit_date or post.date
+    if not post.edit_date:
+        return (datetime.datetime.now(datetime.timezone.utc) - dt).total_seconds() < 60 * 60 * 24    
+    else:
+        return (datetime.datetime.now(datetime.timezone.utc) - dt).total_seconds() < 60 * 60 * 5
+
+async def processExpandTwitter(client):
     src = await client.get_entity(setting['dest'])
     last_sync = cache.get('last_sync_twitter', 0)
-    if last_sync > 2415: # testing
-        return
     posts = await client.get_messages(src, min_id=last_sync, max_id = last_sync + 100, limit = 100)
     post = getNextPost(posts)
-    if not post:
-        cache.update('last_sync_twitter', last_sync + 99)
+    if not post or tooNewForTwitter(post):
         return
     await postTwitter(src, post)
     cache.update('last_sync_twitter', post.id)
 
-async def run():
+async def expand_twitter_run():
     client = await telepost.getTelethonClient()
     # await client.get_dialogs()
-    await process(client)
+    await processExpandTwitter(client)
     await client.disconnect()
     
 if __name__ == "__main__":
     # cache.update('last_sync_twitter', cache.get('last_sync_twitter') - 1)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    loop.run_until_complete(run())
+    if random.random() < 0.5:
+        print(1)
+        loop.run_until_complete(expand_img_run())
+    else:
+        print(2)
+        loop.run_until_complete(expand_twitter_run())
     loop.close()
