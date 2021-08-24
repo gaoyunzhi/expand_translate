@@ -44,7 +44,6 @@ async def postTwitter(src, post):
     await postTwitterCore(to_post_imgs, text)
 
 def tooNewForTwitter(post):
-    return False # testing
     dt = post.edit_date or post.date
     if not post.edit_date:
         return (datetime.datetime.now(datetime.timezone.utc) - dt).total_seconds() < 60 * 60 * 24    
