@@ -45,11 +45,11 @@ async def postTwitter(src, post):
 
 def tooNewForTwitter(post):
     dt = post.edit_date or post.date
-    if not post.edit_date:
-        return (datetime.datetime.now(datetime.timezone.utc) - dt).total_seconds() < 60 * 60 * 24    
-    else:
+    if post.edit_date and (post.edit_date > post.date):
         return (datetime.datetime.now(datetime.timezone.utc) - dt).total_seconds() < 60 * 60 * 5
-
+    else:
+        return (datetime.datetime.now(datetime.timezone.utc) - dt).total_seconds() < 60 * 60 * 24    
+        
 async def processExpandTwitter(client):
     src = await client.get_entity(setting['dest'])
     last_sync = cache.get('last_sync_twitter', 0)
