@@ -40,7 +40,7 @@ def getText(post):
             if 'source' in item.text:
                 source = item['href']
             source_tmp = item['href']
-            item.decompose()
+            item.replace_with('\n' * len(item.find_all('br')))
         if item.name == 'br':
             item.replace_with('\n')
         if str(item).startswith('译者'):
