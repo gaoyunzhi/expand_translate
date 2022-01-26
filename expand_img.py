@@ -48,14 +48,14 @@ def getText(post):
             if isUrl(subitem) or subitem.startswith('http'):
                 source_tmp = subitem
     text = soup.text.strip()
-    result = text
+    result = text + '\n'
     append1 = ''
     text_byte_len = sum([1 if ord(c) <= 256 else 2 for c in result])
     if source or source_tmp:
-        append1 = '\n\n' + (source or source_tmp)
+        append1 = '\n\n原文： ' + (source or source_tmp)
         result = text + append1
         text_byte_len += 25
-    append2 = '\nhttps://t.me/%s/%d' % (setting['src_name'], post.id)
+    append2 = '\n翻译： https://t.me/%s/%d' % (setting['src_name'], post.id)
     result += append2
     short_text = text.split('\n')[0] + append1 + append2
     return result, text_byte_len, short_text
