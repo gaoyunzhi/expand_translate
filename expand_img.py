@@ -50,9 +50,10 @@ def getText(post):
             if isUrl(subitem) or subitem.startswith('http'):
                 source_tmp = subitem
     text = soup.text.strip()
+    append1 = ''
     if source or source_tmp:
         append1 = '\n\n' + (source or source_tmp)
-        result = text + 
+        result = text + append1
     text_byte_len = sum([1 if ord(c) <= 256 else 2 for c in result])
     append2 = '\nhttps://t.me/%s/%d' % (setting['src_name'], post.id)
     result += append2
