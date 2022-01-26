@@ -50,7 +50,7 @@ def getText(post):
     text = soup.text.strip()
     result = text + '\n'
     append1 = ''
-    text_byte_len = sum([1 if ord(c) <= 256 else 2 for c in result])
+    text_byte_len = sum([1 if ord(c) <= 256 else 2 for c in text])
     if source or source_tmp:
         append1 = '\n\n原文： ' + (source or source_tmp)
         result = text + append1
