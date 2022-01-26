@@ -51,8 +51,9 @@ def getText(post):
                 source_tmp = subitem
     text = soup.text.strip()
     if source or source_tmp:
-        result = text + '\n\n' + (source or source_tmp)
-    text_byte_len = sum([isCN(c) + 1 for c in result])
+        append1 = '\n\n' + (source or source_tmp)
+        result = text + 
+    text_byte_len = sum([1 if ord(c) <= 256 else 2 for c in result])
     append2 = '\nhttps://t.me/%s/%d' % (setting['src_name'], post.id)
     result += append2
     short_text = text.split('\n')[0] + append1 + append2
