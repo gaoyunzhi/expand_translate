@@ -15,8 +15,9 @@ import random
 import os
 import datetime
 
-backgrounds = [(227, 227, 255), (223, 242, 253), (226, 252, 230),
-(252, 250, 222), (255, 238, 226), (255, 219, 219)]
+# backgrounds = [(227, 227, 255), (223, 242, 253), (226, 252, 230),
+# (252, 250, 222), (255, 238, 226), (255, 219, 219)]
+backgrounds = [(255, 255, 255)]
 
 with open('credential') as f:
     credential = yaml.load(f, Loader=yaml.FullLoader)
