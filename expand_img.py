@@ -44,8 +44,6 @@ def getText(post):
             continue
         if item.name == 'br':
             item.replace_with('\n')
-        if str(item).startswith('译者'):
-            item.replace_with('')
         for subitem in str(item).split():
             if isUrl(subitem) or subitem.startswith('http'):
                 source_tmp = subitem
