@@ -48,6 +48,7 @@ def getText(post):
             if isUrl(subitem) or subitem.startswith('http'):
                 source_tmp = subitem
     text = soup.text.strip()
+    result = text
     append1 = ''
     text_byte_len = sum([1 if ord(c) <= 256 else 2 for c in result])
     if source or source_tmp:
