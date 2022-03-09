@@ -3,7 +3,6 @@
 # -*- coding: utf-8 -*-
 
 from telethon import TelegramClient
-from bs4 import BeautifulSoup
 import asyncio
 import yaml
 import plain_db
